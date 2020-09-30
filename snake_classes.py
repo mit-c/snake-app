@@ -11,7 +11,7 @@ class Snake:
         self.speed = speed
         self.radius = radius
         self.snake_coords = []
-        self.time_gap = round((1 / self.speed) * radius)
+        self.time_gap = round((1 / self.speed) * radius * 2.1)
 
     def change_dir(self, event):
         key_dict = {273: (0, -1), 275: (1, 0), 276: (-1, 0), 274: (0, 1)}  # swapped up and down
@@ -76,7 +76,7 @@ class SnakeGame:
             xdiff = xfood - xsnake
             ydiff = yfood - ysnake
 
-            if check_collision_circle(food, snake_position, food_radius, snake_radius):
+            if check_collision_circle_taxicab(food, snake_position, food_radius + snake_radius):
                 self.snake.length += 1
                 self.foods.remove(food)
 
@@ -94,8 +94,8 @@ class SnakeGame:
         snake_coords.remove(snake_head)
         if snake_coords:
             for snake_coord in snake_coords:
-                if check_collision_circle(snake_head, snake_coord, self.snake.radius + epsilon,
-                                          self.snake.radius + epsilon):
+                taxicab_dist = self.snake.radius * 2
+                if check_collision_circle_taxicab(snake_head, snake_coord, dist=taxicab_dist):
                     print("snake on snake")
                     return True
 
@@ -105,8 +105,20 @@ class SnakeGame:
                 return True
         return False
 
+def check_collision_circle_taxicab(pos1,pos2,dist):
+    xpos1 = pos1[0]
+    ypos1 = pos1[1]
+
+    xpos2 = pos2[0]
+    ypos2 = pos2[1]
+
+    xdiff = abs(xpos1 - xpos2)
+    ydiff = abs(ypos1 - ypos2)
+
+    return True if xdiff + ydiff < dist else False
 
 def check_collision_circle(pos1, pos2, radius1, radius2):
+
     xpos1 = pos1[0]
     ypos1 = pos1[1]
 
@@ -132,21 +144,32 @@ def check_collision_map(pos, radius1, line):  # line is defined by start and end
     dy = ycoordEnd - ycoordStart
     dx = xcoordEnd - xcoordStart
 
-    if dx == 0: # we have straight line up so easy to check i.e. we have y= y_0
-        if radius1**2 > ycoordStart ** 2:
+    if dx == 0:  # we have straight line up so easy to check i.e. we have y= y_0
+        if radius1 ** 2 > ycoordStart ** 2:
 
-            xsol1 = (radius1 ** 2 - ycoordStart**2)**0.5
-            xsol2 = -(radius1 ** 2 - ycoordStart**2)**0.5
-            print("1st xsol", xsol1, "2nd xsol", xsol2, "xstart", ycoordStart, "xend", ycoordEnd)
-            print(xcoordStart <= xsol1 <= xcoordEnd)
+            xsol1 = (radius1 ** 2 - ycoordStart ** 2) ** 0.5
+            xsol2 = -(radius1 ** 2 - ycoordStart ** 2) ** 0.5
             if -radius1 <= xsol1 <= radius1 or -radius1 <= xsol2 <= radius1:
                 return True
             else:
                 return False
         else:
             return False
+
     # need to fix following logic. Also should implement for snake collision taxicab distance not hypotenuse.
     m = dy / dx
+    if m == 0:
+        if radius1 ** 2 > xcoordStart ** 2:
+
+            ysol1 = (radius1 ** 2 - xcoordStart ** 2) ** 0.5
+            ysol2 = -(radius1 ** 2 - xcoordStart ** 2) ** 0.5
+
+            if -radius1 <= ysol1 <= radius1 or -radius1 <= ysol2 <= radius1:
+                return True
+            else:
+                return False
+        else:
+            return False
     # y = m x + c
     c = ycoordStart - m * xcoordStart
     # solve equation then check in interval
@@ -154,10 +177,13 @@ def check_collision_map(pos, radius1, line):  # line is defined by start and end
     disc_a = 1 + m * m
     disc_b = 2 * m * c
     disc = disc_b * disc_b - 4 * disc_a * disc_c
+
     if disc < 0:
         return False
     else:
+        print(disc)
         x_sol1 = (-disc_b + disc ** 0.5) / (2 * disc_a)
+        print("xstart", xcoordStart, "x_sol1", x_sol1, "xend", xcoordEnd)
         if not xcoordStart <= x_sol1 <= xcoordEnd:
             return False
         else:

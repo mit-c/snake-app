@@ -7,7 +7,8 @@ pygame.init()
 w = 500
 h = 500
 screen = pygame.display.set_mode([w, h])
-game_map = [((0, 0), (w-1, 0)), ((w-1, 0), (w-1, h-1)), ((w-1, h-1), (0, h-1)), ((0, h-1), (0, 0))]
+game_map = [((0, 0), (w, 0)), ((w, 0), (w, h)), ((w, h), (0, h)), ((0, h), (0, 0)),
+            ((round(w / 2), 500), (round(w / 2), round(h / 3)))]
 
 running = True
 my_memory = []
@@ -32,17 +33,12 @@ while running:
                 game_of_snake.snake.change_dir(mem_event)
             else:
                 if event.type == pygame.KEYDOWN:
+                    print(event.dict)
                     game_of_snake.snake.change_dir(event)
         else:
             if event.type == pygame.KEYDOWN:
+                print(event.dict)
                 event_memory.append(event)
-
-
-
-
-
-
-
 
     if event.type == pygame.QUIT:
         running = False
@@ -54,13 +50,9 @@ while running:
     game_of_snake.draw()
     pygame.display.flip()
 
-    #game_of_snake.show_stats()
+    # game_of_snake.show_stats()
 
     if not game_of_snake.snake.snake_coords == [] and game_of_snake.check_snake_death():
         print("Game ended")
-
-
-
-
 
 pygame.quit()

@@ -13,6 +13,7 @@ class Snake:
         self.snake_coords = []
         self.time_gap = round((1 / self.speed) * radius * 2.1)
 
+
     def change_dir(self, event):
         key_dict = {273: (0, -1), 275: (1, 0), 276: (-1, 0), 274: (0, 1)}  # swapped up and down
         wasd_key_dict = {100: (1, 0), 119: (0, -1), 97: (-1, 0), 115: (0, 1)}
@@ -25,16 +26,14 @@ class Snake:
 
     def move(self):
         self.memory.append(self.pos)
-        self.make_snake_coords()
-
+        time_gap = self.time_gap
+        del self.memory[:(-time_gap-1)*self.length]
+        # This deletes really old snake memory.#
+        mem_copy = self.memory.copy()
+        self.snake_coords = mem_copy[::-time_gap]
+        # Fixed problem with slicing!!!
         self.pos = (self.pos[0] + self.speed * self.direction[0], self.pos[1] + self.speed * self.direction[1])
 
-    def make_snake_coords(self):  # creates snake cords from existing memory
-        time_gap = self.time_gap
-
-        mem_copy = self.memory[-time_gap * self.length - time_gap:: 1]
-
-        self.snake_coords = mem_copy[:-time_gap:time_gap]
 
 
 class SnakeGame:
@@ -50,15 +49,23 @@ class SnakeGame:
         self.foods = foods
         self.game_map = game_map  # pairs of coordinates to draw line between. Should be scaled based on game size. #screen.get_height/get_width
         self.food_radius = food_radius
+        self.state = "Alive"
 
     def draw(self):
         food_radius = self.food_radius
         snake_radius = self.snake.radius
-        self.screen.fill((255, 255, 255))
-        for line in self.game_map:
-            pygame.draw.line(self.screen, (0, 0, 0), line[0], line[1], 1)
-        for snake_pos in self.snake.snake_coords:
+        background_colour = (255,255,255)
+        line_colour = (0,0,0)
+        if self.state == "Death by snake":
+            background_colour = (255,0,0)
 
+        if self.state == "Death by wall":
+            background_colour = (0,0,0)
+            line_colour = (255,255,255)
+        self.screen.fill(background_colour)
+        for line in self.game_map:
+            pygame.draw.line(self.screen, line_colour, line[0], line[1], 5)
+        for snake_pos in self.snake.snake_coords:
             pygame.draw.circle(self.screen, (0, 255, 0), (round(snake_pos[0]), round(snake_pos[1])), snake_radius)
             for food in self.foods:
                 pygame.draw.circle(self.screen, (0, 0, 255), food, food_radius)
@@ -76,17 +83,14 @@ class SnakeGame:
             xsnake = snake_position[0]
             ysnake = snake_position[1]
 
-            xdiff = xfood - xsnake
-            ydiff = yfood - ysnake
-
             if check_collision_circle_taxicab(food, snake_position, food_radius + snake_radius):
                 self.snake.length += 1
                 self.foods.remove(food)
 
     def show_stats(self):
         print("length of memory: ", len(self.snake.memory))
-        print("length of snake ", self.snake.length)
-        print("snake cords ", self.snake.snake_coords)
+        #print("length of snake ", self.snake.length)
+        #print("snake cords ", self.snake.snake_coords)
 
     def check_snake_death(self):
         # Cases for snake death: hit map (will implement later), snake head hit snake.
@@ -99,12 +103,13 @@ class SnakeGame:
             for snake_coord in snake_coords:
                 taxicab_dist = self.snake.radius * 2
                 if check_collision_circle_taxicab(snake_head, snake_coord, dist=taxicab_dist):
-                    print("snake on snake")
+                    self.state = "Death by snake"
                     return True
 
         for line in self.game_map:
             if check_collision_map(snake_head, self.snake.radius, line):
-                print("map collision", line)
+
+                self.state = "Death by wall"
                 return True
 
         return False
@@ -149,12 +154,12 @@ def check_collision_map(pos, radius1, line):  # line is defined by start and end
     dy = ycoordEnd - ycoordStart
     dx = xcoordEnd - xcoordStart
 
-    if dx == 0:  # we have straight line up so easy to check i.e. we have y= y_0
+    if dx == 0:  # we have straight line up so easy to check i.e. we have x=x0
 
         if radius1 ** 2 > xcoordStart ** 2:
             ysol1 = (radius1 ** 2 - xcoordStart ** 2) ** 0.5
             ysol2 = - ysol1
-            if -radius1 <= ysol1 <= radius1 or -radius1 <= ysol2 <= radius1:
+            if min(ycoordStart,ycoordEnd)<= (ysol1) <= max(ycoordStart,ycoordEnd) or min(ycoordStart, ycoordEnd)<= ysol2 <= max(ycoordStart,ycoordEnd):
                 return True
             else:
                 return False
@@ -166,7 +171,7 @@ def check_collision_map(pos, radius1, line):  # line is defined by start and end
     if m == 0:  # x constant
         if radius1 ** 2 > ycoordStart ** 2:
 
-            xsol1 = (radius1 ** 2 - xcoordStart ** 2) ** 0.5
+            xsol1 = (radius1 ** 2 - ycoordStart ** 2) ** 0.5
             xsol2 = -xsol1
 
             if -radius1 <= xsol1 <= radius1 or -radius1 <= xsol2 <= radius1:

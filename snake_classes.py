@@ -1,4 +1,5 @@
 import pygame
+import random
 
 
 class Snake:
@@ -13,7 +14,6 @@ class Snake:
         self.snake_coords = []
         self.time_gap = round((1 / self.speed) * radius * 2.1)
 
-
     def change_dir(self, event):
         key_dict = {273: (0, -1), 275: (1, 0), 276: (-1, 0), 274: (0, 1)}  # swapped up and down
         wasd_key_dict = {100: (1, 0), 119: (0, -1), 97: (-1, 0), 115: (0, 1)}
@@ -27,7 +27,7 @@ class Snake:
     def move(self):
         self.memory.append(self.pos)
         time_gap = self.time_gap
-        del self.memory[:(-time_gap-1)*self.length]
+        del self.memory[:(-time_gap) * self.length]
         # This deletes really old snake memory.#
         mem_copy = self.memory.copy()
         self.snake_coords = mem_copy[::-time_gap]
@@ -35,9 +35,9 @@ class Snake:
         self.pos = (self.pos[0] + self.speed * self.direction[0], self.pos[1] + self.speed * self.direction[1])
 
 
-
 class SnakeGame:
-    def __init__(self, screen, snake, foods, food_radius, game_map):
+
+    def __init__(self, screen, snake, foods, food_radius, game_map, high_score, width, height):
         '''
 
         :param screen:  pygame screen object
@@ -50,25 +50,34 @@ class SnakeGame:
         self.game_map = game_map  # pairs of coordinates to draw line between. Should be scaled based on game size. #screen.get_height/get_width
         self.food_radius = food_radius
         self.state = "Alive"
+        self.high_score = high_score
+        self.width = width
+        self.height = height
 
     def draw(self):
         food_radius = self.food_radius
         snake_radius = self.snake.radius
-        background_colour = (255,255,255)
-        line_colour = (0,0,0)
+        background_colour = (255, 255, 255)
+        line_colour = (0, 0, 0)
         if self.state == "Death by snake":
-            background_colour = (255,0,0)
+            background_colour = (255, 0, 0)
 
         if self.state == "Death by wall":
-            background_colour = (0,0,0)
-            line_colour = (255,255,255)
+            background_colour = (0, 0, 0)
+            line_colour = (255, 255, 255)
         self.screen.fill(background_colour)
         for line in self.game_map:
-            pygame.draw.line(self.screen, line_colour, line[0], line[1], 5)
+            pygame.draw.line(self.screen, line_colour, line[0], line[1], 10)
+        counter = 0
         for snake_pos in self.snake.snake_coords:
-            pygame.draw.circle(self.screen, (0, 255, 0), (round(snake_pos[0]), round(snake_pos[1])), snake_radius)
+            if(counter == 0): # can make patterns using %
+                snake_col = (255,0,0)
+            else:
+                snake_col = (0, 255,0)
+            pygame.draw.circle(self.screen, snake_col, (round(snake_pos[0]), round(snake_pos[1])), snake_radius)
             for food in self.foods:
                 pygame.draw.circle(self.screen, (0, 0, 255), food, food_radius)
+            counter += 1
 
     def eat_food(self):
         snake_position = self.snake.pos
@@ -89,8 +98,8 @@ class SnakeGame:
 
     def show_stats(self):
         print("length of memory: ", len(self.snake.memory))
-        #print("length of snake ", self.snake.length)
-        #print("snake cords ", self.snake.snake_coords)
+        # print("length of snake ", self.snake.length)
+        # print("snake cords ", self.snake.snake_coords)
 
     def check_snake_death(self):
         # Cases for snake death: hit map (will implement later), snake head hit snake.
@@ -108,11 +117,108 @@ class SnakeGame:
 
         for line in self.game_map:
             if check_collision_map(snake_head, self.snake.radius, line):
-
                 self.state = "Death by wall"
                 return True
 
         return False
+
+    def start(self, my_game):
+        self = my_game
+        w = self.width
+        h = self.height
+        running = True
+        count = 0
+        random.seed(a=1)
+        start_time = 0
+        event_memory = []
+        key_lag = 180
+
+        pygame.display.set_caption("Snake!")
+        while running:
+            count += 1
+            # store every event in memory
+            # access memory every key_lag ms.
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    event_memory.append(event)
+                if event.type == pygame.QUIT:
+                    running = False
+            end_time = pygame.time.get_ticks()
+            diff = end_time - start_time
+            if (diff > key_lag) and event_memory:
+                mem_event = event_memory.pop(0)
+                self.snake.change_dir(mem_event)
+                start_time = end_time
+
+            if count % 5000 == 0:
+                self.foods.pop(0)
+            if count % 1000 == 0:
+                if len(self.foods) < 5:
+                    self.foods.append((random.randint(0, w), random.randint(0, h)))
+            self.eat_food()
+            self.snake.move()
+            end_time_moving = pygame.time.get_ticks()
+
+            self.draw()
+            start_time_moving = end_time_moving
+            pygame.display.flip()
+
+            self.show_stats()
+
+            if not self.snake.snake_coords == [] and self.check_snake_death():
+                dead = True
+                white = (255, 255, 255)
+                blue = (0, 0, 255)
+                red = (255, 0, 0)
+                green = (0, 255, 0)
+                gold = (255, 223, 0)
+                emerald = (255 * 0, 255 * 0.6, 255 * 0.11)
+                if self.snake.length > self.high_score:
+                    self.high_score = self.snake.length
+                    text_col = gold
+                    background_col = emerald
+                    string1 = "New High Score"
+                else:
+                    text_col = white
+                    background_col = red
+                    string1 = "Game Over"
+                font = pygame.font.Font("freesansbold.ttf", 32)
+
+                string2 = "Score: " + str(self.snake.length)
+                string3 = "High Score: " + str(self.high_score)
+                string4 = self.state
+
+                text1, textRect1 = create_text(string1, 32, (w // 2, h // 5), text_col, background_col)
+                text2, textRect2 = create_text(string2, 32, (w // 2, h // 2), text_col, background_col)
+                text3, textRect3 = create_text(string3, 32, (w // 2, 3 * h // 4), text_col, background_col)
+                text4, textRect4 = create_text(string4, 32, (w // 2, h // 3), text_col, background_col)
+                while dead:
+                    self.screen.fill(background_col)
+                    self.screen.blit(text1, textRect1)
+                    self.screen.blit(text2, textRect2)
+                    self.screen.blit(text3, textRect3)
+                    self.screen.blit(text4, textRect4)
+                    pygame.display.flip()
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            dead = False
+                            running = False
+
+                        if event.type == pygame.KEYDOWN and event.dict['key'] == 13:
+                            dead = False
+                newSnake = Snake(pos=(w // 2, h // 2), direction=(0, 1), length=1, memory=[],
+                                 speed=0.05,
+                                 radius=7)
+                newGame = SnakeGame(screen=self.screen, snake=newSnake, foods=[(10, 10), (20, 20), (30, 30)],
+                                    food_radius=5,
+                                    game_map=self.game_map, high_score=self.high_score, width=w,
+                                    height=h)
+                if running:
+                    self.start(newGame)
+
+                print("Game ended")
+
+        pygame.quit()
 
 
 def check_collision_circle_taxicab(pos1, pos2, dist):
@@ -159,7 +265,9 @@ def check_collision_map(pos, radius1, line):  # line is defined by start and end
         if radius1 ** 2 > xcoordStart ** 2:
             ysol1 = (radius1 ** 2 - xcoordStart ** 2) ** 0.5
             ysol2 = - ysol1
-            if min(ycoordStart,ycoordEnd)<= (ysol1) <= max(ycoordStart,ycoordEnd) or min(ycoordStart, ycoordEnd)<= ysol2 <= max(ycoordStart,ycoordEnd):
+            if min(ycoordStart, ycoordEnd) <= (ysol1) <= max(ycoordStart, ycoordEnd) or min(ycoordStart,
+                                                                                            ycoordEnd) <= ysol2 <= max(
+                ycoordStart, ycoordEnd):
                 return True
             else:
                 return False
@@ -213,3 +321,12 @@ def check_collision_map(pos, radius1, line):  # line is defined by start and end
                 return False
             else:
                 True
+
+
+def create_text(text, font_size, pos, colour, back_col):
+    font = pygame.font.Font("freesansbold.ttf", font_size)
+    string_to_disp = text
+    text = font.render(string_to_disp, True, colour, back_col)
+    textRect = text.get_rect()
+    textRect.center = pos
+    return text, textRect
